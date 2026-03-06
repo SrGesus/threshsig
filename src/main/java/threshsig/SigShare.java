@@ -3,6 +3,9 @@ package threshsig;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 
+import static threshsig.ThreshUtil.FOUR;
+import static threshsig.ThreshUtil.TWO;
+
 /**
  * Signature Shares Class<BR>
  * Associates a signature share with an id & wraps a static verifier
@@ -87,7 +90,6 @@ public class SigShare {
       final BigInteger n, final BigInteger e) throws ThresholdSigException {
     // Sanity Check - make sure there are at least k unique sigs out of l
     // possible
-
     final boolean[] haveSig = new boolean[l];
     for (int i = 0; i < k; i++) {
       // debug("Checking sig " + sigs[i].getId());
@@ -106,8 +108,6 @@ public class SigShare {
     // Test the verifier of each signature to ensure there are
     // no dummy sigs thrown in to corrupt the batch
     if (CHECKVERIFIER) {
-      final BigInteger FOUR = BigInteger.valueOf(4l);
-      final BigInteger TWO = BigInteger.valueOf(2l);
       final BigInteger xtilde = x.modPow(FOUR.multiply(delta), n);
 
       try {
@@ -153,7 +153,7 @@ public class SigShare {
           final BigInteger result = new BigInteger(md.digest()).mod(n);
 
           if (!result.equals(ver.getC())) {
-            debug("Share verifier is not OK");
+            debug("Share verifier " + (sigs[i].getId() - 1) + " is not OK");
             return false;
           }
         }

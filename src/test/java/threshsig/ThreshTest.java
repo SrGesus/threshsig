@@ -1,27 +1,28 @@
 package threshsig;
 
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertTrue;
-
-import junit.framework.TestCase;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 
-public class ThreshTest extends TestCase {
-  private static final int KEYSIZE = 512;
-  private static final int K = 6;
-  private static final int L = 13;
-  private static Dealer d;
-  private static GroupKey gk;
-  private static KeyShare[] keys;
-  private static final byte[] data = new byte[1024];
-  private static byte[] b;
-  private static final SigShare[] sigs = new SigShare[K];
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-  @Override
-  protected void setUp() {
+public class ThreshTest {
+  private final int KEYSIZE = 512;
+  private final int K = 6;
+  private final int L = 13;
+  private Dealer d;
+  private GroupKey gk;
+  private KeyShare[] keys;
+  private final byte[] data = new byte[1024];
+  private byte[] b;
+  private final SigShare[] sigs = new SigShare[K];
+
+  @BeforeEach
+  void setUp() {
     (new Random()).nextBytes(data);
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -30,7 +31,7 @@ public class ThreshTest extends TestCase {
       // This should not occur
       assertTrue(false);
     }
-    
+
     // Initialize a dealer with a keysize
     d = new Dealer(KEYSIZE);
 
@@ -53,6 +54,7 @@ public class ThreshTest extends TestCase {
     keys = d.getShares();
   }
 
+  @Test
   public void testVerifySignatures() {
     System.out.println("Attempting to verify a valid set of signatures...");
     // Pick a set of shares to attempt to verify
@@ -66,6 +68,7 @@ public class ThreshTest extends TestCase {
         .verify(b, sigs, K, L, gk.getModulus(), gk.getExponent()));
   }
 
+  @Test
   public void testVerifySignaturesAgain() {
     System.out.println("Attempting to verify a different set of shares...");
 
@@ -78,13 +81,33 @@ public class ThreshTest extends TestCase {
         .verify(b, sigs, K, L, gk.getModulus(), gk.getExponent()));
   }
 
+  @Test
   public void testVerifyBadSignature() {
-    b = "corrupt data".getBytes();
-    sigs[3] = keys[3].sign(b);
+    System.out.println("Attempting to verify signature of corrupted data...");
+
+    // Create k sigs to verify using different keys
+    final int[] T = { 8, 9, 7, 6, 1, 12 };
+    for (int i = 0; i < K; i++)
+      sigs[i] = keys[T[i]].sign(b);
+
+    sigs[3] = keys[3].sign("corrupt data".getBytes());
     assertFalse(SigShare.verify(b, sigs, K, L, gk.getModulus(), gk
         .getExponent()));
   }
+
+  @Test
+  public void testVerifyImpersonatingSignatures() {
+    testVerifySignaturesAgain();
   
+    sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), keys[3].getDelta(), keys[3].getVerifier(), keys[3].getGroupVerifier()).sign(b);
+  
+    // signature with id 11 should fail, 
+    // but it doesn't because it trusts the signature provided verifier!!!
+    assertFalse(SigShare.verify(b, sigs, K, L, gk.getModulus(), gk
+        .getExponent()));
+  }
+
+  @Test
   public void testPerformance() {
     final int RUNS = 20;
     final int[] S = { 3, 5, 1, 2, 10, 7 };

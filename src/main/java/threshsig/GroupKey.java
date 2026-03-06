@@ -67,4 +67,8 @@ public class GroupKey {
   public BigInteger getExponent() {
     return e;
   }
+
+  public boolean verify(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
+    return SigShare.verify(data, sigs, k, l, n, e);
+  }
 }
