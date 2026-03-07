@@ -20,7 +20,7 @@
   <groupId>threshsig</groupId>
   <artifactId>threshsig</artifactId>
   <name>Threshold Signature Package</name>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <description>An Implementation of Shoup's "Practical Threshold Signatures"</description>
 
   <properties>
