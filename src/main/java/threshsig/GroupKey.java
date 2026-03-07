@@ -96,6 +96,10 @@ public class GroupKey {
     return vk[id - 1];
   }
 
+  public BigInteger getDelta() {
+      return delta;
+  }
+
   public Verification checkSignatures(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
     Verification verification = new Verification(data, sigs);
     verification.checkSignatures();

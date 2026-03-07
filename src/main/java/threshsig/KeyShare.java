@@ -2,8 +2,6 @@ package threshsig;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
-import java.util.Random;
 
 /**
  * A Secret Key Share for an RSA (k,l) Threshold Scheme
@@ -18,28 +16,14 @@ public class KeyShare {
   // ............................................................................
   /** Secret key value */
   private BigInteger secret;
-  // groupKey for convenience
-  private GroupKey gk;
-
-  // TODO: This information should be moved to a GroupKey object
-  // It's redundant to put into every share
-  private BigInteger n;
-  private final BigInteger delta;
 
   /** The secret key value used to sign messages. Should not be exposed */
   private BigInteger signVal;
-  // TODO: Maybe get a better id scheme. Use verifier?
-  private int id;
 
-  // TODO-Rand: This is klunky.
-  // Maybe use a utility class with a RNG for everyone
-  private static SecureRandom random;
-  private MessageDigest md;
-  static {
-    final byte[] randSeed = new byte[20];
-    (new Random()).nextBytes(randSeed);
-    random = new SecureRandom(randSeed);
-  }
+  /** groupKey for convenience */
+  private GroupKey gk;
+  /** From 1 to gk.getL() */
+  private int id;
 
   // Constructors
   // ............................................................................
@@ -56,14 +40,12 @@ public class KeyShare {
     this.id = id;
     this.secret = secret;
 
-    this.n = n;
-    this.delta = delta;
     this.signVal = ThreshUtil.FOUR.multiply(delta).multiply(secret);
   }
 
-  public KeyShare(int id, BigInteger secret, BigInteger modulus, BigInteger delta,
+  public KeyShare(int id, BigInteger secret, BigInteger modulus,
       GroupKey gk) {
-    this(id, secret, modulus, delta);
+    this(id, secret, modulus, gk.getDelta());
     this.gk = gk;
   }
 
@@ -80,10 +62,6 @@ public class KeyShare {
 
   public void setGroupKey(final GroupKey gk) {
     this.gk = gk;
-  }
-
-  public BigInteger getDelta() {
-    return this.delta;
   }
 
   public BigInteger getSignVal() {
@@ -104,21 +82,21 @@ public class KeyShare {
    * @return a sig share with a verifier
    */
   public SigShare sign(final byte[] b) {
-    final BigInteger x = (new BigInteger(b)).mod(n);
+    final BigInteger x = (new BigInteger(b)).mod(gk.getModulus());
 
-    final int randbits = n.bitLength() + 3 * ThreshUtil.L1;
+    final int randbits = gk.getModulus().bitLength() + 3 * ThreshUtil.L1;
 
     // r \elt (0, 2^L(n)+3*l1)
-    final BigInteger r = (new BigInteger(randbits, random));
-    final BigInteger vprime = gk.getGroupVerifier().modPow(r, n);
-    final BigInteger xtilde = x.modPow(ThreshUtil.FOUR.multiply(delta), n);
-    final BigInteger xprime = xtilde.modPow(r, n);
+    final BigInteger r = (new BigInteger(randbits, ThreshUtil.getRandom()));
+    final BigInteger vprime = gk.getGroupVerifier().modPow(r, gk.getModulus());
+    final BigInteger xtilde = x.modPow(ThreshUtil.FOUR.multiply(gk.getDelta()), gk.getModulus());
+    final BigInteger xprime = xtilde.modPow(r, gk.getModulus());
 
     BigInteger c = null;
     BigInteger z = null;
     // Try to generate C and Z
     try {
-      md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
+      MessageDigest md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
       md.reset();
 
       // debug("v: " + groupVerifier.mod(n));
@@ -131,14 +109,14 @@ public class KeyShare {
       md.update(gk.getVerifier(id).toByteArray());
 
       // debug("xi^2: " + x.modPow(signVal,n).modPow(TWO,n));
-      md.update(x.modPow(signVal, n).modPow(ThreshUtil.TWO, n).toByteArray());
+      md.update(x.modPow(signVal, gk.getModulus()).modPow(ThreshUtil.TWO, gk.getModulus()).toByteArray());
 
       // debug("v': "+ vprime);
       md.update(vprime.toByteArray());
 
       // debug("x': " + xprime);
       md.update(xprime.toByteArray());
-      c = new BigInteger(md.digest()).mod(n);
+      c = new BigInteger(md.digest()).mod(gk.getModulus());
       z = (c.multiply(secret)).add(r);
     } catch (final java.security.NoSuchAlgorithmException e) {
       debug("Provider could not locate SHA message digest .");
@@ -147,7 +125,7 @@ public class KeyShare {
 
     final Verifier ver = new Verifier(z, c);
 
-    return new SigShare(id, x.modPow(signVal, n), ver);
+    return new SigShare(id, x.modPow(signVal, gk.getModulus()), ver);
   }
 
   // Debugging

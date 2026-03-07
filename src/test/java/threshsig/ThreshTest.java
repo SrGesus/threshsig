@@ -118,7 +118,7 @@ public class ThreshTest {
     testVerifySignaturesAgain();
     System.out.println("Attempting to verify a impersonated signature...");
 
-    sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), keys[3].getDelta(), gk).sign(b);
+    sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), gk).sign(b);
 
     Verification verification = gk.checkSignatures(b, sigs);
 
