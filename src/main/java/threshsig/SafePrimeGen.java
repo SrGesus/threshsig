@@ -85,7 +85,7 @@ class SafePrimeGen {
     // //////////////////////////////////////////////////////////////////////
     //
     // Gordon's Algorithm for generating strong primes.
-    //  
+    //
     // see:
     //
     // Strong Primes Are Easy to Find
@@ -103,18 +103,18 @@ class SafePrimeGen {
     // We use the steps described in hac for algorithm 4.53. For finer
     // granularity, we split the steps in sub steps such as 1.1, 1.2, ...
     // Also we use the notation used in hac as follows:
-    // 
+    //
     // p-1 has a large prime factor, denoted r.
     // p+1 has a large prime factor, denoted s.
     // r-1 has a large prime factor, denoted t.
     //
     // Ronald R. Rivest and Robert D. Silverman use in:
-    //      
+    //
     // Are 'Strong' Primes Needed for RSA?
     // you can find it at ftp://ftp.rsasecurity.com/pub/pdfs/sp2.pdf
-    // 
+    //
     // the following notation:
-    //      
+    //
     // p-1 has a large prime factor, denoted p^-.
     // p+1 has a large prime factor, denoted p^+.
     // (p^-)-1 has a large prime factor, denoted p^--.
@@ -339,11 +339,11 @@ class SafePrimeGen {
       // to left, starting at 1 to 1 like this -> 100000 we reconvert
       // the
       // formula:
-      //      
+      //
       // p = p0 + 2*j*r*s
       //
       // to
-      //  
+      //
       // j = (p-p0) / (2*r*s)
       //
       // now we set p = 2^(bitLength-1) and calculate j with our

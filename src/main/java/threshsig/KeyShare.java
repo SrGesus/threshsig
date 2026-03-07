@@ -85,7 +85,7 @@ public class KeyShare {
   }
 
   // public BigInteger getVerifier() {
-  //   return this.verifier;
+  // return this.verifier;
   // }
 
   public BigInteger getDelta() {
@@ -93,7 +93,7 @@ public class KeyShare {
   }
 
   // public BigInteger getGroupVerifier() {
-  //   return this.groupVerifier;
+  // return this.groupVerifier;
   // }
 
   public BigInteger getSignVal() {

@@ -1,5 +1,23 @@
-Threshsig
-=========
+# Threshsig
+
+To add as maven dependency, you can add the jitpack repository:
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+```
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.github.srgesus</groupId>
+        <artifactId>threshsig</artifactId>
+        <version>0.0.1</version>
+    </dependency>
+</dependencies>
+```
 
 This is an implementation of Victor Shoup's ["Practical Threshold Signatures"]
 (http://www.shoup.net/papers/thsig.pdf). It was originally written as an

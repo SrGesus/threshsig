@@ -13,8 +13,9 @@ import java.math.BigInteger;
 public class Dealer {
 
   // Constants and variables
-  //............................................................................
+  // ............................................................................
   private int keysize;
+
   private KeyShare[] shares = null;
   /** Group Key */
   private GroupKey gk;
@@ -24,7 +25,7 @@ public class Dealer {
   private Poly poly;
 
   // Constructors
-  //............................................................................
+  // ............................................................................
 
   /**
    * Create a new instance of a key dealer
@@ -40,7 +41,7 @@ public class Dealer {
   }
 
   // Public Methods
-  //............................................................................
+  // ............................................................................
   /**
    * Generate a group public key and l shares for a (k,l) <BR>
    * threshold signatures scheme<BR>
@@ -129,7 +130,7 @@ public class Dealer {
   }
 
   // Initialization Checks
-  //............................................................................
+  // ............................................................................
 
   private void checkKeyInit() throws ThresholdSigException {
     if (keyInit == false) {
@@ -141,7 +142,7 @@ public class Dealer {
   }
 
   // Private Methods
-  //............................................................................
+  // ............................................................................
   /**
    * 
    * Generates secret shares for a (k,l) threshold signatures scheme<BR>
@@ -188,7 +189,7 @@ public class Dealer {
    * Computes v[i] = v^^s[i] mod n, where v is an element of QR_n <BR>
    * Returns the group verifier and sets the verifier in each share<br>
    * 
-   * @param n - Size of modulo for group key
+   * @param n       - Size of modulo for group key
    * @param secrets - array of shares
    * 
    * @return the group verifier
@@ -201,7 +202,7 @@ public class Dealer {
     BigInteger rand = null;
 
     // v = new BigInteger[secrets.length];
-  
+
     // rand is an element of Q*n (squares of relative primes mod n)
     while (true) {
       rand = new BigInteger(n.bitLength(), ThreshUtil.getRandom());
@@ -241,7 +242,7 @@ public class Dealer {
   }
 
   // Debugging
-  //............................................................................
+  // ............................................................................
 
   private final static boolean DEBUG = true;
 
