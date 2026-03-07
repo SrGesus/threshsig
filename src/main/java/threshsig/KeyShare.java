@@ -18,8 +18,6 @@ public class KeyShare {
   // ............................................................................
   /** Secret key value */
   private BigInteger secret;
-  /** Verifier used to authenticate self to other shares */
-  // private BigInteger verifier;
   // groupKey for convenience
   private GroupKey gk;
 
