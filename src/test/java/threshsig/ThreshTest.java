@@ -10,6 +10,8 @@ import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import threshsig.GroupKey.Verification;
+
 public class ThreshTest {
   private final int KEYSIZE = 512;
   private final int K = 6;
@@ -66,6 +68,12 @@ public class ThreshTest {
 
     assertTrue(gk
         .verify(b, sigs));
+
+    Verification verification = gk.checkSignatures(b, sigs);
+
+    assertTrue(verification.isValid());
+
+    assertTrue(gk.verify(b, verification.getSignature()));
   }
 
   @Test
@@ -79,30 +87,49 @@ public class ThreshTest {
 
     assertTrue(gk
         .verify(b, sigs));
+
+    Verification verification = gk.checkSignatures(b, sigs);
+
+    assertTrue(verification.isValid());
+
+    assertTrue(gk.verify(b, verification.getSignature()));
   }
 
   @Test
   public void testVerifyBadSignature() {
+    testVerifySignaturesAgain();
     System.out.println("Attempting to verify signature of corrupted data...");
 
-    // Create k sigs to verify using different keys
-    final int[] T = { 8, 9, 7, 6, 1, 12 };
-    for (int i = 0; i < K; i++)
-      sigs[i] = keys[T[i]].sign(b);
-
     sigs[3] = keys[3].sign("corrupt data".getBytes());
-    assertFalse(gk.verify(b, sigs));
+
+    Verification verification = gk.checkSignatures(b, sigs);
+
+    // only signature with id 11 should fail,
+    assertTrue(verification.getFailedSigs().contains(sigs[3]));
+    assertTrue(verification.getFailedSigs().size() == 1);
+
+    assertFalse(verification.isValid());
+
+    assertFalse(gk.verify(b, verification.getSignature()));
   }
 
   @Test
   public void testVerifyImpersonatingSignatures() {
     testVerifySignaturesAgain();
-  
+    System.out.println("Attempting to verify a impersonated signature...");
+
     sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), keys[3].getDelta(), gk).sign(b);
-  
-    // signature with id 11 should fail, 
-    // but it doesn't because it trusts the signature provided verifier!!!
-    assertFalse(gk.verify(b, sigs));
+
+    Verification verification = gk.checkSignatures(b, sigs);
+
+    // only signature with id 11 should fail,
+    assertTrue(verification.getFailedSigs().contains(sigs[3]));
+    assertTrue(verification.getFailedSigs().size() == 1);
+
+    // group signature should also fail
+    assertFalse(verification.isValid());
+
+    assertFalse(gk.verify(b, verification.getSignature()));
   }
 
   @Test

@@ -78,9 +78,7 @@ public class KeyShare {
     return secret;
   }
 
-  public void setVerifiers(final BigInteger verifier, final GroupKey gk) {
-    // this.verifier = verifier;
-    // this.groupVerifier = groupVerifier;
+  public void setGroupKey(final GroupKey gk) {
     this.gk = gk;
   }
 
@@ -120,7 +118,7 @@ public class KeyShare {
     BigInteger z = null;
     // Try to generate C and Z
     try {
-      md = MessageDigest.getInstance("SHA-256");
+      md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
       md.reset();
 
       // debug("v: " + groupVerifier.mod(n));

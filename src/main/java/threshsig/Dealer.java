@@ -108,7 +108,7 @@ public class Dealer {
     // Create a group key
     gk = new GroupKey(k, l, keysize, e, n, groupVerifier, verifiers);
     for (int i = 0; i < shares.length; i++) {
-      shares[i].setVerifiers(verifiers[i], gk);
+      shares[i].setGroupKey(gk);
     }
     keyInit = true;
   }
@@ -153,8 +153,6 @@ public class Dealer {
    * @return An array of l secret shares
    * @throws ThresholdSigException
    */
-  // TODO: Merge Dealer.generateShares and Dealer.generateVerifiers
-  // and generate them simultaneously
   private KeyShare[] generateKeyShares(final BigInteger d, final BigInteger m, final int k,
       final int l, final BigInteger n) {
     BigInteger[] secrets;
@@ -194,8 +192,6 @@ public class Dealer {
    * 
    * @return the group verifier
    */
-  // TODO: Merge Dealer.generateShares and Dealer.generateVerifiers
-  // and generate them simultaneously
   private BigInteger generateVerifiers(final BigInteger n, final KeyShare[] secrets, BigInteger[] verifiers) {
     debug("Generating Verifiers");
     // BigInteger[] v;

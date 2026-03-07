@@ -6,6 +6,8 @@ import java.security.SecureRandom;
 class ThreshUtil {
   // Constants and variables
   // ............................................................................
+  static String DIGEST_ALGO = "SHA-256";
+
   protected final static BigInteger ZERO = BigInteger.ZERO;
 
   protected final static BigInteger ONE = BigInteger.ONE;

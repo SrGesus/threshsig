@@ -2,6 +2,8 @@ package threshsig;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 
 import static threshsig.ThreshUtil.FOUR;
 import static threshsig.ThreshUtil.TWO;
@@ -19,9 +21,6 @@ import static threshsig.ThreshUtil.TWO;
 // TODO: Investigate the security of reusing the key parameters (q,p) with a
 // new Poly, since they are computationally expensive
 public class GroupKey {
-  /** Whether to test */
-  private final static boolean CHECKVERIFIER = true;
-
   /** (k,l) Parameters. k out of l shares needed for a signature */
   private int k, l;
 
@@ -37,6 +36,9 @@ public class GroupKey {
   /** Verifier for each share */
   private BigInteger[] vk;
 
+  private BigInteger delta;
+  BigInteger eprime;
+
   public GroupKey(final int k, final int l, final int keysize,
       final BigInteger e, final BigInteger n, final BigInteger v, final BigInteger[] vk) {
     this.k = k;
@@ -45,6 +47,9 @@ public class GroupKey {
     this.n = n;
     this.v = v;
     this.vk = vk;
+    this.delta = ThreshUtil.factorial(l);
+    // eprime = delta^2*4
+    this.eprime = delta.multiply(delta).shiftLeft(2);
   }
 
   /**
@@ -91,39 +96,84 @@ public class GroupKey {
     return vk[id - 1];
   }
 
-  public boolean verify(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
-    // return SigShare.verify(data, sigs, k, l, n, e, this);
+  public Verification checkSignatures(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
+    Verification verification = new Verification(data, sigs);
+    verification.checkSignatures();
+    return verification;
+  }
 
-    // Sanity Check - make sure there are at least k unique sigs out of l
-    // possible
-    final boolean[] haveSig = new boolean[l];
+  public boolean verify(final byte[] data, final SigShare[] sigs) {
+    final BigInteger x = (new BigInteger(data)).mod(n);
+    return verify(data, sigs, x);
+  }
+
+  private boolean verify(final byte[] data, final SigShare[] sigs, BigInteger x) {
+    BigInteger w = ThreshUtil.ONE;
+
     for (int i = 0; i < k; i++) {
-      // debug("Checking sig " + sigs[i].getId());
-      if (sigs[i] == null) {
-        throw new ThresholdSigException("Null signature");
-      }
-      if (haveSig[sigs[i].getId() - 1]) {
-        throw new ThresholdSigException("Duplicate signature: " + sigs[i].getId());
-      }
-      haveSig[sigs[i].getId() - 1] = true;
+      w = w.multiply(sigs[i].getSig().modPow(ThreshUtil.lambda(sigs[i].getId(), sigs, delta), n));
     }
 
-    final BigInteger x = (new BigInteger(data)).mod(n);
-    final BigInteger delta = ThreshUtil.factorial(l);
+    w = w.mod(n);
+    final BigInteger xeprime = x.modPow(eprime, n);
+    final BigInteger we = w.modPow(e, n);
+    return (xeprime.compareTo(we) == 0);
+  }
 
-    // Test the verifier of each signature to ensure there are
-    // no dummy sigs thrown in to corrupt the batch
-    if (CHECKVERIFIER) {
+  public boolean verify(final byte[] data, final BigInteger signature) {
+    final BigInteger x = (new BigInteger(data)).mod(n);
+
+    final BigInteger xeprime = x.modPow(eprime, n);
+    final BigInteger we = signature.modPow(e, n);
+    return (xeprime.compareTo(we) == 0);
+  }
+
+  // Debugging
+  // ............................................................................
+  private static void debug(final String s) {
+    System.err.println("GroupKey: " + s);
+  }
+
+  public class Verification {
+    final private byte[] data;
+    final private SigShare[] sigs;
+    final BigInteger x;
+    private List<SigShare> failedSigs;
+
+    private boolean valid = false;
+    private boolean verifiedRun = false;
+
+    private Verification(byte[] data, SigShare[] sigs) {
+      this.data = data;
+      this.sigs = sigs;
+      this.x = (new BigInteger(data)).mod(n);
+      // this.failedSigs = failedSigs;
+    }
+
+    private void checkSignatures() throws ThresholdSigException {
+      failedSigs = new ArrayList<>();
+      final boolean[] haveSig = new boolean[l];
+      for (int i = 0; i < k; i++) {
+        // debug("Checking sig " + sigs[i].getId());
+        if (sigs[i] == null) {
+          throw new ThresholdSigException("Null signature");
+        }
+        if (haveSig[sigs[i].getId() - 1]) {
+          throw new ThresholdSigException("Duplicate signature: " + sigs[i].getId());
+        }
+        haveSig[sigs[i].getId() - 1] = true;
+      }
+
       final BigInteger xtilde = x.modPow(FOUR.multiply(delta), n);
 
       try {
-        final MessageDigest md = MessageDigest.getInstance("SHA-256");
+        final MessageDigest md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
 
         for (int i = 0; i < k; i++) {
           md.reset();
           final Verifier ver = sigs[i].getSigVerifier();
-          final BigInteger v = this.getGroupVerifier();
-          final BigInteger vi = this.getVerifier(sigs[i].getId());
+          final BigInteger v = getGroupVerifier();
+          final BigInteger vi = getVerifier(sigs[i].getId());
 
           // debug("v :" + v);
           md.update(v.toByteArray());
@@ -159,8 +209,9 @@ public class GroupKey {
           final BigInteger result = new BigInteger(md.digest()).mod(n);
 
           if (!result.equals(ver.getC())) {
-            debug("Share verifier " + (sigs[i].getId() - 1) + " is not OK");
-            return false;
+            debug("Share verifier " + sigs[i].getId() + " is not OK");
+            // return false;
+            failedSigs.add(sigs[i]);
           }
         }
       } catch (final java.security.NoSuchAlgorithmException ex) {
@@ -169,24 +220,33 @@ public class GroupKey {
       }
     }
 
-    BigInteger w = BigInteger.valueOf(1l);
-
-    for (int i = 0; i < k; i++) {
-      w = w.multiply(sigs[i].getSig().modPow(ThreshUtil.lambda(sigs[i].getId(), sigs, delta), n));
+    public boolean verify() {
+      this.verifiedRun = true;
+      valid = GroupKey.this.verify(data, sigs, x);
+      return valid;
     }
 
-    // eprime = delta^2*4
-    final BigInteger eprime = delta.multiply(delta).shiftLeft(2);
+    public List<SigShare> getFailedSigs() {
+      return failedSigs;
+    }
 
-    w = w.mod(n);
-    final BigInteger xeprime = x.modPow(eprime, n);
-    final BigInteger we = w.modPow(e, n);
-    return (xeprime.compareTo(we) == 0);
-  }
+    public BigInteger getSignature() {
+      BigInteger w = ThreshUtil.ONE;
 
-  // Debugging
-  // ............................................................................
-  private static void debug(final String s) {
-    System.err.println("GroupKey: " + s);
+      for (int i = 0; i < k; i++) {
+        w = w.multiply(sigs[i].getSig().modPow(ThreshUtil.lambda(sigs[i].getId(), sigs, delta), n));
+      }
+
+      w = w.mod(n);
+      return w;
+    }
+
+    public boolean isValid() {
+      if (!verifiedRun) {
+        return verify();
+      } else {
+        return valid;
+      }
+    }
   }
 }
