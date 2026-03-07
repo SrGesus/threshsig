@@ -87,7 +87,7 @@ public class SigShare {
   // Static methods
   //............................................................................
   public static boolean verify(final byte[] data, final SigShare[] sigs, final int k, final int l,
-      final BigInteger n, final BigInteger e) throws ThresholdSigException {
+      final BigInteger n, final BigInteger e, GroupKey gk) throws ThresholdSigException {
     // Sanity Check - make sure there are at least k unique sigs out of l
     // possible
     final boolean[] haveSig = new boolean[l];
@@ -116,8 +116,8 @@ public class SigShare {
         for (int i = 0; i < k; i++) {
           md.reset();
           final Verifier ver = sigs[i].getSigVerifier();
-          final BigInteger v = ver.getGroupVerifier();
-          final BigInteger vi = ver.getShareVerifier();
+          final BigInteger v = gk.getGroupVerifier();
+          final BigInteger vi = gk.getVerifier(sigs[i].getId());
 
           // debug("v :" + v);
           md.update(v.toByteArray());

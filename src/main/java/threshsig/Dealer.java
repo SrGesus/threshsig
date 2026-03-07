@@ -16,8 +16,6 @@ public class Dealer {
   //............................................................................
   private int keysize;
   private KeyShare[] shares = null;
-  /** Group Verifier */
-  private BigInteger vk = null;
   /** Group Key */
   private GroupKey gk;
   /** Indicates whether this dealer has initialized a set of keys */
@@ -103,10 +101,14 @@ public class Dealer {
     shares = generateKeyShares(d, m, k, l, n);
 
     // Create verification shares
-    vk = generateVerifiers(n, shares);
+    BigInteger[] verifiers = new BigInteger[l];
+    BigInteger groupVerifier = generateVerifiers(n, shares, verifiers);
 
     // Create a group key
-    gk = new GroupKey(k, l, keysize, vk, e, n);
+    gk = new GroupKey(k, l, keysize, e, n, groupVerifier, verifiers);
+    for (int i = 0; i < shares.length; i++) {
+      shares[i].setVerifiers(verifiers[i], gk);
+    }
     keyInit = true;
   }
 
@@ -193,31 +195,32 @@ public class Dealer {
    */
   // TODO: Merge Dealer.generateShares and Dealer.generateVerifiers
   // and generate them simultaneously
-  private BigInteger generateVerifiers(final BigInteger n, final KeyShare[] secrets) {
+  private BigInteger generateVerifiers(final BigInteger n, final KeyShare[] secrets, BigInteger[] verifiers) {
     debug("Generating Verifiers");
     // BigInteger[] v;
     BigInteger rand = null;
 
     // v = new BigInteger[secrets.length];
-
-    for (final KeyShare element : secrets) {
-      // rand is an element of Q*n (squares of relative primes mod n)
-      while (true) {
-        rand = new BigInteger(n.bitLength(), ThreshUtil.getRandom());
-        // ensure that rand is relatively prime to n
-        final BigInteger d = rand.gcd(n);
-        if (d.compareTo(ThreshUtil.ONE) == 0) {
-          break;
-        }
-        // Else d was not relatively prime
-        // Note: This should be very rare
-        debug("Verifier was not relatively prime");
+  
+    // rand is an element of Q*n (squares of relative primes mod n)
+    while (true) {
+      rand = new BigInteger(n.bitLength(), ThreshUtil.getRandom());
+      // ensure that rand is relatively prime to n
+      final BigInteger d = rand.gcd(n);
+      if (d.compareTo(ThreshUtil.ONE) == 0) {
+        break;
       }
-      // Rand is an element of QsubN - square mod n
-      // This value is the group verifier
-      rand = rand.multiply(rand).mod(n);
+      // Else d was not relatively prime
+      // Note: This should be very rare
+      debug("Verifier was not relatively prime");
+    }
+    // Rand is an element of QsubN - square mod n
+    // This value is the group verifier
+    rand = rand.multiply(rand).mod(n);
 
-      element.setVerifiers(rand.modPow(element.getSecret(), n), rand);
+    for (int i = 0; i < secrets.length; i++) {
+      verifiers[i] = rand.modPow(secrets[i].getSecret(), n);
+      // secrets[i].setVerifiers(verifiers[i], gk);
     }
 
     return rand;

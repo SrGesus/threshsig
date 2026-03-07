@@ -64,8 +64,8 @@ public class ThreshTest {
     for (int i = 0; i < S.length; i++)
       sigs[i] = keys[S[i]].sign(b);
 
-    assertTrue(SigShare
-        .verify(b, sigs, K, L, gk.getModulus(), gk.getExponent()));
+    assertTrue(gk
+        .verify(b, sigs));
   }
 
   @Test
@@ -77,8 +77,8 @@ public class ThreshTest {
     for (int i = 0; i < K; i++)
       sigs[i] = keys[T[i]].sign(b);
 
-    assertTrue(SigShare
-        .verify(b, sigs, K, L, gk.getModulus(), gk.getExponent()));
+    assertTrue(gk
+        .verify(b, sigs));
   }
 
   @Test
@@ -91,20 +91,18 @@ public class ThreshTest {
       sigs[i] = keys[T[i]].sign(b);
 
     sigs[3] = keys[3].sign("corrupt data".getBytes());
-    assertFalse(SigShare.verify(b, sigs, K, L, gk.getModulus(), gk
-        .getExponent()));
+    assertFalse(gk.verify(b, sigs));
   }
 
   @Test
   public void testVerifyImpersonatingSignatures() {
     testVerifySignaturesAgain();
   
-    sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), keys[3].getDelta(), keys[3].getVerifier(), keys[3].getGroupVerifier()).sign(b);
+    sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk.getModulus(), keys[3].getDelta(), gk).sign(b);
   
     // signature with id 11 should fail, 
     // but it doesn't because it trusts the signature provided verifier!!!
-    assertFalse(SigShare.verify(b, sigs, K, L, gk.getModulus(), gk
-        .getExponent()));
+    assertFalse(gk.verify(b, sigs));
   }
 
   @Test
@@ -124,7 +122,7 @@ public class ThreshTest {
 
     start = System.currentTimeMillis();
     for (int i = 0; i < RUNS; i++)
-      if (!SigShare.verify(b, sigs, K, L, gk.getModulus(), gk.getExponent()))
+      if (!gk.verify(b, sigs))
         System.out.println("Sig Failed to verify correctly");
     elapsed = System.currentTimeMillis() - start;
     System.out.println("Verification total (" + RUNS + " sigs) (ms): "

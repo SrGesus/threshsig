@@ -24,12 +24,20 @@ public class GroupKey {
   /** The RSA modulus of the groupKeyPair */
   private BigInteger n;
 
-  public GroupKey(final int k, final int l, final int keysize, final BigInteger v,
-      final BigInteger e, final BigInteger n) {
+  /** Group Verifier */
+  private BigInteger v;
+
+  /** Verifier for each share */
+  private BigInteger[] vk;
+
+  public GroupKey(final int k, final int l, final int keysize,
+      final BigInteger e, final BigInteger n, final BigInteger v, final BigInteger[] vk) {
     this.k = k;
     this.l = l;
     this.e = e;
     this.n = n;
+    this.v = v;
+    this.vk = vk;
   }
 
   /**
@@ -68,7 +76,15 @@ public class GroupKey {
     return e;
   }
 
+  public BigInteger getGroupVerifier() {
+    return v;
+  }
+
+  public BigInteger getVerifier(int id) {
+    return vk[id - 1];
+  }
+
   public boolean verify(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
-    return SigShare.verify(data, sigs, k, l, n, e);
+    return SigShare.verify(data, sigs, k, l, n, e, this);
   }
 }

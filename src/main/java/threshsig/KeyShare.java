@@ -19,8 +19,9 @@ public class KeyShare {
   /** Secret key value */
   private BigInteger secret;
   /** Verifier used to authenticate self to other shares */
-  private BigInteger verifier;
-  private BigInteger groupVerifier;
+  // private BigInteger verifier;
+  // groupKey for convenience
+  private GroupKey gk;
 
   // TODO: This information should be moved to a GroupKey object
   // It's redundant to put into every share
@@ -57,21 +58,15 @@ public class KeyShare {
     this.id = id;
     this.secret = secret;
 
-    // Verifier must be set later using setVerifier()
-    // TODO: Merge Dealer.generateShares and Dealer.generateVerifiers
-    // and generate them simultaneously
-    this.verifier = null;
-
     this.n = n;
     this.delta = delta;
     this.signVal = ThreshUtil.FOUR.multiply(delta).multiply(secret);
   }
 
-  public KeyShare(int id, BigInteger secret, BigInteger modulus, BigInteger delta, BigInteger verifier,
-      BigInteger groupVerifier) {
+  public KeyShare(int id, BigInteger secret, BigInteger modulus, BigInteger delta,
+      GroupKey gk) {
     this(id, secret, modulus, delta);
-    this.verifier = verifier;
-    this.groupVerifier = groupVerifier;
+    this.gk = gk;
   }
 
   // Public Methods
@@ -85,22 +80,23 @@ public class KeyShare {
     return secret;
   }
 
-  public void setVerifiers(final BigInteger verifier, final BigInteger groupVerifier) {
-    this.verifier = verifier;
-    this.groupVerifier = groupVerifier;
+  public void setVerifiers(final BigInteger verifier, final GroupKey gk) {
+    // this.verifier = verifier;
+    // this.groupVerifier = groupVerifier;
+    this.gk = gk;
   }
 
-  public BigInteger getVerifier() {
-    return this.verifier;
-  }
+  // public BigInteger getVerifier() {
+  //   return this.verifier;
+  // }
 
   public BigInteger getDelta() {
     return this.delta;
   }
 
-  public BigInteger getGroupVerifier() {
-    return this.groupVerifier;
-  }
+  // public BigInteger getGroupVerifier() {
+  //   return this.groupVerifier;
+  // }
 
   public BigInteger getSignVal() {
     return this.signVal;
@@ -126,7 +122,7 @@ public class KeyShare {
 
     // r \elt (0, 2^L(n)+3*l1)
     final BigInteger r = (new BigInteger(randbits, random));
-    final BigInteger vprime = groupVerifier.modPow(r, n);
+    final BigInteger vprime = gk.getGroupVerifier().modPow(r, n);
     final BigInteger xtilde = x.modPow(ThreshUtil.FOUR.multiply(delta), n);
     final BigInteger xprime = xtilde.modPow(r, n);
 
@@ -138,13 +134,13 @@ public class KeyShare {
       md.reset();
 
       // debug("v: " + groupVerifier.mod(n));
-      md.update(groupVerifier.mod(n).toByteArray());
+      md.update(gk.getGroupVerifier().toByteArray());
 
       // debug("xtilde: " + xtilde);
       md.update(xtilde.toByteArray());
 
       // debug("vi: " + verifier.mod(n));
-      md.update(verifier.mod(n).toByteArray());
+      md.update(gk.getVerifier(id).toByteArray());
 
       // debug("xi^2: " + x.modPow(signVal,n).modPow(TWO,n));
       md.update(x.modPow(signVal, n).modPow(ThreshUtil.TWO, n).toByteArray());
@@ -161,7 +157,7 @@ public class KeyShare {
       e.printStackTrace();
     }
 
-    final Verifier ver = new Verifier(z, c, verifier, groupVerifier);
+    final Verifier ver = new Verifier(z, c);
 
     return new SigShare(id, x.modPow(signVal, n), ver);
   }
