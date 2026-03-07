@@ -175,7 +175,7 @@ public class Dealer {
 
     final KeyShare[] s = new KeyShare[l];
     for (int i = 0; i < l; i++) {
-      s[i] = new KeyShare(i + 1, secrets[i], n, delta);
+      s[i] = new KeyShare(i + 1, secrets[i], delta);
     }
 
     return s;

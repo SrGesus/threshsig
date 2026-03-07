@@ -36,16 +36,15 @@ public class KeyShare {
    * @param n      - the modulo of the group public key
    * @param delta  - l! (group size factorial)
    */
-  public KeyShare(final int id, final BigInteger secret, final BigInteger n, final BigInteger delta) {
+  public KeyShare(final int id, final BigInteger secret, final BigInteger delta) {
     this.id = id;
     this.secret = secret;
 
     this.signVal = ThreshUtil.FOUR.multiply(delta).multiply(secret);
   }
 
-  public KeyShare(int id, BigInteger secret, BigInteger modulus,
-      GroupKey gk) {
-    this(id, secret, modulus, gk.getDelta());
+  public KeyShare(int id, BigInteger secret, GroupKey gk) {
+    this(id, secret, gk.getDelta());
     this.gk = gk;
   }
 
