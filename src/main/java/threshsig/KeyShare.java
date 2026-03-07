@@ -84,17 +84,9 @@ public class KeyShare {
     this.gk = gk;
   }
 
-  // public BigInteger getVerifier() {
-  // return this.verifier;
-  // }
-
   public BigInteger getDelta() {
     return this.delta;
   }
-
-  // public BigInteger getGroupVerifier() {
-  // return this.groupVerifier;
-  // }
 
   public BigInteger getSignVal() {
     return this.signVal;
@@ -128,7 +120,7 @@ public class KeyShare {
     BigInteger z = null;
     // Try to generate C and Z
     try {
-      md = MessageDigest.getInstance("SHA");
+      md = MessageDigest.getInstance("SHA-256");
       md.reset();
 
       // debug("v: " + groupVerifier.mod(n));

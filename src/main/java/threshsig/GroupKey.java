@@ -117,7 +117,7 @@ public class GroupKey {
       final BigInteger xtilde = x.modPow(FOUR.multiply(delta), n);
 
       try {
-        final MessageDigest md = MessageDigest.getInstance("SHA");
+        final MessageDigest md = MessageDigest.getInstance("SHA-256");
 
         for (int i = 0; i < k; i++) {
           md.reset();
