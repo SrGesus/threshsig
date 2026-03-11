@@ -39,7 +39,7 @@ public class GroupKey {
   private BigInteger delta;
   BigInteger eprime;
 
-  public GroupKey(final int k, final int l, final int keysize,
+  public GroupKey(final int k, final int l,
       final BigInteger e, final BigInteger n, final BigInteger v, final BigInteger[] vk) {
     this.k = k;
     this.l = l;
@@ -97,7 +97,7 @@ public class GroupKey {
   }
 
   public BigInteger getDelta() {
-      return delta;
+    return delta;
   }
 
   public Verification checkSignatures(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
@@ -135,7 +135,8 @@ public class GroupKey {
   // Debugging
   // ............................................................................
   private static void debug(final String s) {
-    System.err.println("GroupKey: " + s);
+    if (ThreshUtil.DEBUG)
+      System.err.println("GroupKey: " + s);
   }
 
   public class Verification {

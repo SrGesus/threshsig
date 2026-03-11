@@ -2,14 +2,10 @@ package threshsig;
 
 import java.math.BigInteger;
 
-class Verifier {
+public class Verifier {
   private BigInteger z;
 
   private BigInteger c;
-
-  // private BigInteger groupVerifier;
-
-  // private BigInteger shareVerifier;
 
   public Verifier(final BigInteger z, final BigInteger c) {
     this.z = z;

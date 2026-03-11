@@ -130,6 +130,7 @@ public class KeyShare {
   // Debugging
   // ............................................................................
   private static void debug(final String s) {
-    System.err.println("KeyShare: " + s);
+    if (ThreshUtil.DEBUG)
+      System.err.println("KeyShare: " + s);
   }
 }

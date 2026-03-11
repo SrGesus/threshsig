@@ -106,7 +106,7 @@ public class Dealer {
     BigInteger groupVerifier = generateVerifiers(n, shares, verifiers);
 
     // Create a group key
-    gk = new GroupKey(k, l, keysize, e, n, groupVerifier, verifiers);
+    gk = new GroupKey(k, l, e, n, groupVerifier, verifiers);
     for (int i = 0; i < shares.length; i++) {
       shares[i].setGroupKey(gk);
     }
@@ -243,7 +243,8 @@ public class Dealer {
   private final static boolean DEBUG = true;
 
   private static void debug(final String s) {
-    System.err.println("Dealer: " + s);
+    if (ThreshUtil.DEBUG)
+      System.err.println("Dealer: " + s);
   }
 
   public static void main(final String[] args) {

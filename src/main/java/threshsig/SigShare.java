@@ -13,12 +13,13 @@ import java.math.BigInteger;
  */
 public class SigShare {
 
-  // Constants and variables
-  // ............................................................................
+  /* Id 1 to N */
   private int id;
 
+  /* Signature Share */
   private BigInteger sig;
 
+  /** Verifiers */
   private Verifier sigVerifier;
 
   // Constructors
@@ -27,11 +28,6 @@ public class SigShare {
     this.id = id;
     this.sig = sig;
     this.sigVerifier = sigVerifier;
-  }
-
-  public SigShare(final int id, final byte[] sig) {
-    this.id = id;
-    this.sig = new BigInteger(sig);
   }
 
   // Public Methods
@@ -62,15 +58,6 @@ public class SigShare {
    */
   public Verifier getSigVerifier() {
     return sigVerifier;
-  }
-
-  /**
-   * Return a byte array representation of this signature
-   * 
-   * @return a byte array representation of this signature
-   */
-  public byte[] getBytes() {
-    return sig.toByteArray();
   }
 
   @Override

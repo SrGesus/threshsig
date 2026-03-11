@@ -3,10 +3,12 @@ package threshsig;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
-class ThreshUtil {
+public class ThreshUtil {
   // Constants and variables
   // ............................................................................
   static String DIGEST_ALGO = "SHA-256";
+
+  public static boolean DEBUG = false;
 
   protected final static BigInteger ZERO = BigInteger.ZERO;
 
