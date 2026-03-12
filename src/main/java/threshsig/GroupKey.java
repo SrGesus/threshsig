@@ -2,8 +2,11 @@ package threshsig;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static threshsig.ThreshUtil.FOUR;
 import static threshsig.ThreshUtil.TWO;
@@ -100,11 +103,12 @@ public class GroupKey {
     return delta;
   }
 
-  public Verification checkSignatures(final byte[] data, final SigShare[] sigs) throws ThresholdSigException {
-    Verification verification = new Verification(data, sigs);
-    verification.checkSignatures();
-    return verification;
-  }
+  // public Verification checkSignatures(final byte[] data, final SigShare[] sigs)
+  // throws ThresholdSigException {
+  // Verification verification = new Verification(data, sigs);
+  // verification.checkSignatures();
+  // return verification;
+  // }
 
   public boolean verify(final byte[] data, final SigShare[] sigs) {
     final BigInteger x = (new BigInteger(data)).mod(n);
@@ -132,6 +136,61 @@ public class GroupKey {
     return (xeprime.compareTo(we) == 0);
   }
 
+  public boolean checkSigShare(final byte[] data, final SigShare sigShare) throws NoSuchAlgorithmException {
+    return checkSigShare((new BigInteger(data)).mod(n).modPow(FOUR.multiply(delta), n), sigShare);
+  }
+
+  public boolean checkSigShare(final BigInteger xtilde, final SigShare sigShare) throws NoSuchAlgorithmException {
+    final MessageDigest md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
+
+    final Verifier ver = sigShare.getSigVerifier();
+    final BigInteger v = getGroupVerifier();
+    final BigInteger vi = getVerifier(sigShare.getId());
+
+    // debug("v :" + v);
+    md.update(v.toByteArray());
+
+    // debug("xtilde :" + xtilde);
+    md.update(xtilde.toByteArray());
+
+    // debug("vi :" + vi);
+    md.update(vi.toByteArray());
+
+    final BigInteger xi = sigShare.getSig();
+    // debug("xi^2 :" + xi.modPow(TWO,n));
+    md.update(xi.modPow(TWO, n).toByteArray());
+
+    final BigInteger vz = v.modPow(ver.getZ(), n);
+
+    final BigInteger vinegc = vi.modPow(ver.getC(), n).modInverse(n);
+    // debug("v^z*v^-c :" + vz.multiply(vinegc).mod(n));
+    md.update(vz.multiply(vinegc).mod(n).toByteArray());
+
+    final BigInteger xtildez = xtilde.modPow(ver.getZ(), n);
+
+    // TODO: CHECK PAPER!
+    final BigInteger xineg2c = xi.modPow(ver.getC(), n).modInverse(n);
+    // According to Shoup, pg. 8 this should be:
+    // xi.modPow(TWO,n).modPow(ver.getC(),n).modInverse(n);
+
+    // Something to do with working in Q_n since every
+    // element is a square
+
+    // debug("xi^-2cx: " + xineg2c.multiply(xtildez).mod(n));
+    md.update(xineg2c.multiply(xtildez).mod(n).toByteArray());
+    final BigInteger result = new BigInteger(md.digest()).mod(n);
+
+    if (!result.equals(ver.getC())) {
+      debug("Share verifier " + sigShare.getId() + " is not OK");
+      return false;
+    }
+    return true;
+  }
+
+  public Aggregator starAggregation(byte[] data) {
+    return new Aggregator(data);
+  }
+
   // Debugging
   // ............................................................................
   private static void debug(final String s) {
@@ -139,96 +198,115 @@ public class GroupKey {
       System.err.println("GroupKey: " + s);
   }
 
-  public class Verification {
+  public class Aggregator {
     final private byte[] data;
-    final private SigShare[] sigs;
+    final private List<SigShare> sigs;
     final BigInteger x;
+    final BigInteger xtilde;
     private List<SigShare> failedSigs;
+    final boolean[] haveSig;
 
-    private boolean valid = false;
-    private boolean verifiedRun = false;
+    // private boolean valid = false;
+    // private boolean verifiedRun = false;
 
-    private Verification(byte[] data, SigShare[] sigs) {
-      this.data = data;
-      this.sigs = sigs;
-      this.x = (new BigInteger(data)).mod(n);
-      // this.failedSigs = failedSigs;
+    private Aggregator(byte[] signedData) {
+      this.data = signedData;
+      this.sigs = new ArrayList<>(getK());
+      this.x = (new BigInteger(signedData)).mod(n);
+      this.xtilde = x.modPow(FOUR.multiply(delta), n);
+      this.failedSigs = new ArrayList<>();
+      haveSig = new boolean[l];
     }
 
-    private void checkSignatures() throws ThresholdSigException {
-      failedSigs = new ArrayList<>();
-      final boolean[] haveSig = new boolean[l];
-      for (int i = 0; i < k; i++) {
-        // debug("Checking sig " + sigs[i].getId());
-        if (sigs[i] == null) {
-          throw new ThresholdSigException("Null signature");
-        }
-        if (haveSig[sigs[i].getId() - 1]) {
-          throw new ThresholdSigException("Duplicate signature: " + sigs[i].getId());
-        }
-        haveSig[sigs[i].getId() - 1] = true;
+    public void tryAddSigShares(SigShare... sigShares) {
+      for (SigShare sigShare : sigShares) {
+        tryAddSigShare(sigShare);
+      }
+    }
+
+    /**
+     * Adds a sigShare to aggregated if it is valid and we still need more
+     * signatures.
+     * 
+     * @param sigShare to be added
+     * @return true if sigShare was added
+     * @throws NullPointerException  if sigShare is null
+     * @throws ThresholdSigException if signature has invalid id or share with same
+     *                               id is already in aggregator.
+     */
+    public boolean tryAddSigShare(SigShare sigShare) {
+      Objects.requireNonNull(sigShare);
+      if (haveSig[sigShare.getId() - 1]) {
+        throw new ThresholdSigException("Duplicate signature: " + sigShare.getId());
+      }
+      if (sigShare.getId() <= 0 || sigShare.getId() > getL()) {
+        throw new ThresholdSigException("Signature id expected to be between 1 and " + getL() + " but is: " + sigShare);
       }
 
-      final BigInteger xtilde = x.modPow(FOUR.multiply(delta), n);
+      if (sigs.size() >= getK()) {
+        // Don't add if we already have enough sigs
+        return false;
+      }
 
+      MessageDigest md;
       try {
-        final MessageDigest md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
-
-        for (int i = 0; i < k; i++) {
-          md.reset();
-          final Verifier ver = sigs[i].getSigVerifier();
-          final BigInteger v = getGroupVerifier();
-          final BigInteger vi = getVerifier(sigs[i].getId());
-
-          // debug("v :" + v);
-          md.update(v.toByteArray());
-
-          // debug("xtilde :" + xtilde);
-          md.update(xtilde.toByteArray());
-
-          // debug("vi :" + vi);
-          md.update(vi.toByteArray());
-
-          final BigInteger xi = sigs[i].getSig();
-          // debug("xi^2 :" + xi.modPow(TWO,n));
-          md.update(xi.modPow(TWO, n).toByteArray());
-
-          final BigInteger vz = v.modPow(ver.getZ(), n);
-
-          final BigInteger vinegc = vi.modPow(ver.getC(), n).modInverse(n);
-          // debug("v^z*v^-c :" + vz.multiply(vinegc).mod(n));
-          md.update(vz.multiply(vinegc).mod(n).toByteArray());
-
-          final BigInteger xtildez = xtilde.modPow(ver.getZ(), n);
-
-          // TODO: CHECK PAPER!
-          final BigInteger xineg2c = xi.modPow(ver.getC(), n).modInverse(n);
-          // According to Shoup, pg. 8 this should be:
-          // xi.modPow(TWO,n).modPow(ver.getC(),n).modInverse(n);
-
-          // Something to do with working in Q_n since every
-          // element is a square
-
-          // debug("xi^-2cx: " + xineg2c.multiply(xtildez).mod(n));
-          md.update(xineg2c.multiply(xtildez).mod(n).toByteArray());
-          final BigInteger result = new BigInteger(md.digest()).mod(n);
-
-          if (!result.equals(ver.getC())) {
-            debug("Share verifier " + sigs[i].getId() + " is not OK");
-            // return false;
-            failedSigs.add(sigs[i]);
-          }
-        }
-      } catch (final java.security.NoSuchAlgorithmException ex) {
-        debug("Provider could not locate SHA message digest .");
-        ex.printStackTrace();
+        md = MessageDigest.getInstance(ThreshUtil.DIGEST_ALGO);
+      } catch (NoSuchAlgorithmException e) {
+        throw new RuntimeException(e);
       }
+
+      final Verifier ver = sigShare.getSigVerifier();
+      final BigInteger v = getGroupVerifier();
+      final BigInteger vi = getVerifier(sigShare.getId());
+
+      // debug("v :" + v);
+      md.update(v.toByteArray());
+
+      // debug("xtilde :" + xtilde);
+      md.update(xtilde.toByteArray());
+
+      // debug("vi :" + vi);
+      md.update(vi.toByteArray());
+
+      final BigInteger xi = sigShare.getSig();
+      // debug("xi^2 :" + xi.modPow(TWO,n));
+      md.update(xi.modPow(TWO, n).toByteArray());
+
+      final BigInteger vz = v.modPow(ver.getZ(), n);
+
+      final BigInteger vinegc = vi.modPow(ver.getC(), n).modInverse(n);
+      // debug("v^z*v^-c :" + vz.multiply(vinegc).mod(n));
+      md.update(vz.multiply(vinegc).mod(n).toByteArray());
+
+      final BigInteger xtildez = xtilde.modPow(ver.getZ(), n);
+
+      // TODO: CHECK PAPER!
+      final BigInteger xineg2c = xi.modPow(ver.getC(), n).modInverse(n);
+      // According to Shoup, pg. 8 this should be:
+      // xi.modPow(TWO,n).modPow(ver.getC(),n).modInverse(n);
+
+      // Something to do with working in Q_n since every
+      // element is a square
+
+      // debug("xi^-2cx: " + xineg2c.multiply(xtildez).mod(n));
+      md.update(xineg2c.multiply(xtildez).mod(n).toByteArray());
+      final BigInteger result = new BigInteger(md.digest()).mod(n);
+
+      if (!result.equals(ver.getC())) {
+        debug("Share verifier " + sigShare.getId() + " is not OK");
+        failedSigs.add(sigShare);
+        return false;
+      }
+      haveSig[sigShare.getId() - 1] = true;
+      sigs.add(sigShare);
+      return true;
     }
 
     public boolean verify() {
-      this.verifiedRun = true;
-      valid = GroupKey.this.verify(data, sigs, x);
-      return valid;
+      if (sigs.size() != getK()) {
+        throw new ThresholdSigException("Needed " + getK() + " signatures, but have: " + sigs.size());
+      }
+      return GroupKey.this.verify(data, sigs.toArray(new SigShare[getK()]), x);
     }
 
     public List<SigShare> getFailedSigs() {
@@ -238,20 +316,17 @@ public class GroupKey {
     public BigInteger getSignature() {
       BigInteger w = ThreshUtil.ONE;
 
+      if (sigs.size() != getK()) {
+        throw new ThresholdSigException("Needed " + getK() + " signatures, but have: " + sigs.size());
+      }
+
       for (int i = 0; i < k; i++) {
-        w = w.multiply(sigs[i].getSig().modPow(ThreshUtil.lambda(sigs[i].getId(), sigs, delta), n));
+        w = w.multiply(sigs.get(i).getSig()
+            .modPow(ThreshUtil.lambda(sigs.get(i).getId(), sigs.toArray(new SigShare[getK()]), delta), n));
       }
 
       w = w.mod(n);
       return w;
-    }
-
-    public boolean isValid() {
-      if (!verifiedRun) {
-        return verify();
-      } else {
-        return valid;
-      }
     }
   }
 }

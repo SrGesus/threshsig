@@ -1,6 +1,7 @@
 package threshsig;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.MessageDigest;
@@ -10,7 +11,7 @@ import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import threshsig.GroupKey.Verification;
+import threshsig.GroupKey.Aggregator;;
 
 public class ThreshTest {
   private final int KEYSIZE = 512;
@@ -61,7 +62,7 @@ public class ThreshTest {
     System.out.println("Attempting to verify a valid set of signatures...");
     // Pick a set of shares to attempt to verify
     // These are the indices of the shares
-    final int[] S = { 3, 5, 1, 2, 10, 7 };
+    final int[] S = { 3, 5, 1, L - 1, 10, 0 };
 
     for (int i = 0; i < S.length; i++)
       sigs[i] = keys[S[i]].sign(b);
@@ -69,11 +70,13 @@ public class ThreshTest {
     assertTrue(gk
         .verify(b, sigs));
 
-    Verification verification = gk.checkSignatures(b, sigs);
+    Aggregator aggregator = gk.starAggregation(b);
+    for (int i = 0; i < S.length; i++)
+      aggregator.tryAddSigShare(sigs[i]);
 
-    assertTrue(verification.isValid());
+    assertTrue(aggregator.verify());
 
-    assertTrue(gk.verify(b, verification.getSignature()));
+    assertTrue(gk.verify(b, aggregator.getSignature()));
   }
 
   @Test
@@ -88,11 +91,14 @@ public class ThreshTest {
     assertTrue(gk
         .verify(b, sigs));
 
-    Verification verification = gk.checkSignatures(b, sigs);
+    Aggregator aggregator = gk.starAggregation(b);
+    for (int i = 0; i < T.length; i++)
+      aggregator.tryAddSigShare(sigs[i]);
 
-    assertTrue(verification.isValid());
+    assertTrue(aggregator.verify());
+    assertTrue(gk.verify(b, sigs));
 
-    assertTrue(gk.verify(b, verification.getSignature()));
+    assertTrue(gk.verify(b, aggregator.getSignature()));
   }
 
   @Test
@@ -102,15 +108,17 @@ public class ThreshTest {
 
     sigs[3] = keys[3].sign("corrupt data".getBytes());
 
-    Verification verification = gk.checkSignatures(b, sigs);
+    Aggregator aggregator = gk.starAggregation(b);
+    aggregator.tryAddSigShares(sigs);
 
-    // only signature with id 11 should fail,
-    assertTrue(verification.getFailedSigs().contains(sigs[3]));
-    assertTrue(verification.getFailedSigs().size() == 1);
+    // only signature with id 7 should fail,
+    assertTrue(aggregator.getFailedSigs().contains(sigs[3]));
+    assertTrue(aggregator.getFailedSigs().size() == 1);
 
-    assertFalse(verification.isValid());
+    assertThrows(ThresholdSigException.class, () -> aggregator.verify());
+    assertFalse(gk.verify(b, sigs));
 
-    assertFalse(gk.verify(b, verification.getSignature()));
+    assertThrows(ThresholdSigException.class, () -> aggregator.getSignature());
   }
 
   @Test
@@ -120,16 +128,18 @@ public class ThreshTest {
 
     sigs[3] = new KeyShare(10 + 1, keys[3].getSecret(), gk).sign(b);
 
-    Verification verification = gk.checkSignatures(b, sigs);
+    Aggregator aggregator = gk.starAggregation(b);
+    aggregator.tryAddSigShares(sigs);
 
     // only signature with id 11 should fail,
-    assertTrue(verification.getFailedSigs().contains(sigs[3]));
-    assertTrue(verification.getFailedSigs().size() == 1);
+    assertTrue(aggregator.getFailedSigs().contains(sigs[3]));
+    assertTrue(aggregator.getFailedSigs().size() == 1);
 
     // group signature should also fail
-    assertFalse(verification.isValid());
+    assertFalse(gk.verify(b, sigs));
+    assertThrows(ThresholdSigException.class, () -> aggregator.verify());
 
-    assertFalse(gk.verify(b, verification.getSignature()));
+    assertThrows(ThresholdSigException.class, () -> aggregator.getSignature());
   }
 
   @Test
